@@ -12,7 +12,7 @@ metadata:
 spec:
   project: default
   source:
-    repoURL: https://github.com/s24-video-learning/s24-video-learning.git
+    repoURL: https://github.com/mitulvashista123/s24-video-learning.git
     targetRevision: main
     path: k8s-apps/overlays/aws
   destination:
