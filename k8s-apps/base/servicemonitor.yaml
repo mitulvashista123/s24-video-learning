@@ -1,0 +1,22 @@
+# Prometheus Operator (kube-prometheus-stack) scrapes /metrics of every S24 service.
+# The CRD is installed by observability/setup-commands.sh; SkipDryRunOnMissingResource lets
+# ArgoCD sync the rest of the app even if observability is installed later.
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: s24-services
+  labels: {app.kubernetes.io/part-of: s24-video-learning, release: kube-prometheus-stack}
+  annotations:
+    argocd.argoproj.io/sync-options: SkipDryRunOnMissingResource=true
+spec:
+  selector:
+    matchLabels:
+      s24/metrics: "true"
+  namespaceSelector:
+    matchNames: [s24]
+  endpoints:
+    - port: http
+      path: /metrics
+      interval: 15s
+      scrapeTimeout: 10s
+      honorLabels: true

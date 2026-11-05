@@ -1,0 +1,67 @@
+# Horizontal Pod Autoscalers for the two critical, CPU-bound hot paths.
+# Both scale on average CPU utilisation (target 50 % of the 100m request).
+# metrics-server is installed as an EKS add-on by Terraform.
+---
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: content-delivery-api
+  labels: {app: content-delivery-api, app.kubernetes.io/part-of: s24-video-learning}
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: content-delivery-api
+  minReplicas: 2
+  maxReplicas: 10
+  metrics:
+    - type: Resource
+      resource:
+        name: cpu
+        target:
+          type: Utilization
+          averageUtilization: 50
+  behavior:
+    scaleUp:
+      stabilizationWindowSeconds: 0
+      selectPolicy: Max
+      policies:
+        - {type: Percent, value: 100, periodSeconds: 30}
+        - {type: Pods, value: 4, periodSeconds: 30}
+    scaleDown:
+      stabilizationWindowSeconds: 120
+      selectPolicy: Min
+      policies:
+        - {type: Percent, value: 50, periodSeconds: 60}
+---
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: progress-tracker
+  labels: {app: progress-tracker, app.kubernetes.io/part-of: s24-video-learning}
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: progress-tracker
+  minReplicas: 2
+  maxReplicas: 10
+  metrics:
+    - type: Resource
+      resource:
+        name: cpu
+        target:
+          type: Utilization
+          averageUtilization: 50
+  behavior:
+    scaleUp:
+      stabilizationWindowSeconds: 0
+      selectPolicy: Max
+      policies:
+        - {type: Percent, value: 100, periodSeconds: 30}
+        - {type: Pods, value: 4, periodSeconds: 30}
+    scaleDown:
+      stabilizationWindowSeconds: 120
+      selectPolicy: Min
+      policies:
+        - {type: Percent, value: 50, periodSeconds: 60}

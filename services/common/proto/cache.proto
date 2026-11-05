@@ -1,0 +1,67 @@
+syntax = "proto3";
+
+package s24.cache;
+
+// Distributed cache partitioned with a consistent-hash ring (MD5 + virtual nodes).
+// Any cache-manager replica accepts a call; if it is not the owner of the key it
+// forwards the call (forwarded=true) to the owning replica.
+service CacheService {
+  rpc Get(GetRequest) returns (GetResponse);
+  rpc Set(SetRequest) returns (SetResponse);
+  rpc Delete(DeleteRequest) returns (DeleteResponse);
+  rpc Lookup(LookupRequest) returns (LookupResponse);
+}
+
+message GetRequest {
+  string key = 1;
+  bool forwarded = 2;
+}
+
+message GetResponse {
+  bool found = 1;
+  bytes value = 2;
+  int64 version = 3;
+  int64 expires_at_ms = 4;
+  int64 age_ms = 5;
+  string owner = 6;
+  string served_by = 7;
+}
+
+message SetRequest {
+  string key = 1;
+  bytes value = 2;
+  int64 version = 3;
+  int32 ttl_seconds = 4;
+  // Wall-clock ms at which the caller started reading the source of truth.
+  // Writes whose read started before the key's latest invalidation are rejected,
+  // which closes the classic cache-aside "stale set after invalidate" race.
+  int64 read_started_ms = 5;
+  bool forwarded = 6;
+}
+
+message SetResponse {
+  bool stored = 1;
+  string owner = 2;
+  string reason = 3;
+}
+
+message DeleteRequest {
+  string key = 1;
+  bool forwarded = 2;
+}
+
+message DeleteResponse {
+  bool deleted = 1;
+  string owner = 2;
+}
+
+message LookupRequest {
+  string key = 1;
+}
+
+message LookupResponse {
+  string owner = 1;
+  uint64 key_hash = 2;
+  uint64 vnode_hash = 3;
+  string vnode = 4;
+}

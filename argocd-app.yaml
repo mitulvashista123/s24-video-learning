@@ -1,0 +1,39 @@
+# ArgoCD Application – the GitOps controller tracks this repository and continuously
+# reconciles k8s-apps/overlays/aws (= k8s-apps/base + ECR image pins) into namespace s24.
+# Terraform creates exactly this Application (helm_release.argocd_root_app); the file is kept
+# in Git as the declarative source of truth. scripts/bootstrap.sh fills in repoURL.
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: s24-services
+  namespace: argocd
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  project: default
+  source:
+    repoURL: https://github.com/s24-video-learning/s24-video-learning.git
+    targetRevision: main
+    path: k8s-apps/overlays/aws
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: s24
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
+      - ApplyOutOfSyncOnly=true
+    retry:
+      limit: 10
+      backoff:
+        duration: 15s
+        factor: 2
+        maxDuration: 5m
+  # HPAs own the replica count of these Deployments.
+  ignoreDifferences:
+    - group: apps
+      kind: Deployment
+      jsonPointers:
+        - /spec/replicas

@@ -1,0 +1,76 @@
+# kube-prometheus-stack values for S24
+prometheus:
+  prometheusSpec:
+    # discover ServiceMonitors/PodMonitors in every namespace, regardless of Helm labels
+    serviceMonitorSelectorNilUsesHelmValues: false
+    podMonitorSelectorNilUsesHelmValues: false
+    ruleSelectorNilUsesHelmValues: false
+    scrapeInterval: 15s
+    evaluationInterval: 15s
+    retention: 3d
+    resources:
+      requests: {cpu: 200m, memory: 1Gi}
+      limits: {memory: 2Gi}
+
+alertmanager:
+  enabled: true
+  alertmanagerSpec:
+    resources:
+      requests: {cpu: 20m, memory: 64Mi}
+
+grafana:
+  enabled: true
+  service:
+    type: LoadBalancer
+  defaultDashboardsEnabled: true
+  defaultDashboardsTimezone: browser
+  sidecar:
+    dashboards:
+      enabled: true
+      label: grafana_dashboard
+      labelValue: "1"
+      searchNamespace: ALL
+    datasources:
+      enabled: true
+  additionalDataSources:
+    - name: Loki
+      uid: loki
+      type: loki
+      access: proxy
+      url: http://loki-gateway.monitoring.svc.cluster.local
+      jsonData:
+        maxLines: 1000
+
+kube-state-metrics:
+  metricLabelsAllowlist:
+    - pods=[app]
+    - deployments=[app]
+
+additionalPrometheusRulesMap:
+  s24-rules:
+    groups:
+      - name: s24.slo
+        rules:
+          - alert: S24HighErrorRate
+            expr: |
+              sum by (service) (rate(http_requests_total{namespace="s24",status=~"5.."}[5m]))
+                / clamp_min(sum by (service) (rate(http_requests_total{namespace="s24"}[5m])), 1e-9) > 0.05
+            for: 5m
+            labels: {severity: warning}
+            annotations:
+              summary: "{{ $labels.service }} 5xx ratio above 5%"
+          - alert: S24HighLatencyP95
+            expr: |
+              histogram_quantile(0.95, sum by (le, service) (rate(http_request_duration_seconds_bucket{namespace="s24"}[5m]))) > 1
+            for: 5m
+            labels: {severity: warning}
+            annotations:
+              summary: "{{ $labels.service }} p95 latency above 1s"
+          - alert: S24HPAAtMax
+            expr: |
+              kube_horizontalpodautoscaler_status_current_replicas{namespace="s24"}
+                >= kube_horizontalpodautoscaler_spec_max_replicas{namespace="s24"}
+            for: 10m
+            labels: {severity: info}
+            annotations:
+              summary: "HPA {{ $labels.horizontalpodautoscaler }} is pinned at max replicas"

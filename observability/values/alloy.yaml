@@ -1,0 +1,90 @@
+# Grafana Alloy: tails every pod's logs through the Kubernetes API and ships them to Loki.
+# S24 services log JSON, so `level` and `service` are promoted to Loki labels.
+controller:
+  type: deployment
+  replicas: 1
+
+alloy:
+  resources:
+    requests: {cpu: 50m, memory: 128Mi}
+    limits: {memory: 512Mi}
+  clustering:
+    enabled: false
+  configMap:
+    create: true
+    content: |
+      discovery.kubernetes "pods" {
+        role = "pod"
+      }
+
+      discovery.relabel "pods" {
+        targets = discovery.kubernetes.pods.targets
+
+        rule {
+          source_labels = ["__meta_kubernetes_pod_phase"]
+          regex         = "Pending|Succeeded|Failed|Unknown"
+          action        = "drop"
+        }
+        rule {
+          source_labels = ["__meta_kubernetes_namespace"]
+          target_label  = "namespace"
+        }
+        rule {
+          source_labels = ["__meta_kubernetes_pod_name"]
+          target_label  = "pod"
+        }
+        rule {
+          source_labels = ["__meta_kubernetes_pod_container_name"]
+          target_label  = "container"
+        }
+        rule {
+          source_labels = ["__meta_kubernetes_pod_label_app"]
+          target_label  = "app"
+        }
+        rule {
+          source_labels = ["__meta_kubernetes_pod_node_name"]
+          target_label  = "node"
+        }
+      }
+
+      loki.source.kubernetes "pods" {
+        targets    = discovery.relabel.pods.output
+        forward_to = [loki.process.parse.receiver]
+      }
+
+      loki.process "parse" {
+        stage.match {
+          selector = "{namespace=\"s24\"}"
+
+          stage.json {
+            expressions = {
+              level   = "level",
+              service = "service",
+              route   = "route",
+              status  = "status",
+            }
+          }
+
+          stage.labels {
+            values = {
+              level   = "",
+              service = "",
+            }
+          }
+
+          stage.structured_metadata {
+            values = {
+              route  = "",
+              status = "",
+            }
+          }
+        }
+
+        forward_to = [loki.write.default.receiver]
+      }
+
+      loki.write "default" {
+        endpoint {
+          url = "http://loki-gateway.monitoring.svc.cluster.local/loki/api/v1/push"
+        }
+      }

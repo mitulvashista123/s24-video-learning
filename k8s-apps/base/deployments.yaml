@@ -1,0 +1,442 @@
+# S24 Online Video Learning – workloads managed by ArgoCD (GitOps). Never `kubectl apply` these.
+#
+#   Service 1 user-service          Deployment  (REST, RDS PostgreSQL)
+#   Service 2 catalog-service       Deployment  (REST, RDS PostgreSQL, Kafka producer)
+#   Service 3 metadata-service      Deployment  (REST, RDS PostgreSQL + S3, Kafka producer)
+#   Service 4 content-delivery-api  Deployment  (public REST via Ingress, gRPC client, Kafka producer) – HPA
+#   Service 5 cache-manager         StatefulSet (gRPC + REST, consistent-hash partitions, Kafka consumer)
+#   Service 6 progress-tracker      Deployment  (REST, DynamoDB, Kafka producer) – HPA
+#   Service 7 recommendation-fn     AWS Lambda  (provisioned by Terraform: S3 + MSK triggers)
+#   Service 8 usage-analytics-flink Amazon EMR  (provisioned by Terraform: PyFlink job on YARN)
+#
+# Images are written as s24/<service>; the kustomize overlay (k8s-apps/overlays/aws) maps them
+# to the ECR repositories and pins the tag that CI / scripts/build-and-push.sh committed.
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: user-service
+  labels: {app: user-service, app.kubernetes.io/part-of: s24-video-learning}
+spec:
+  replicas: 2
+  revisionHistoryLimit: 5
+  selector:
+    matchLabels: {app: user-service}
+  strategy:
+    type: RollingUpdate
+    rollingUpdate: {maxSurge: 1, maxUnavailable: 0}
+  template:
+    metadata:
+      labels: {app: user-service, app.kubernetes.io/part-of: s24-video-learning}
+    spec:
+      serviceAccountName: s24-app
+      terminationGracePeriodSeconds: 30
+      topologySpreadConstraints:
+        - maxSkew: 1
+          topologyKey: kubernetes.io/hostname
+          whenUnsatisfiable: ScheduleAnyway
+          labelSelector:
+            matchLabels: {app: user-service}
+      containers:
+        - name: user-service
+          image: s24/user-service
+          imagePullPolicy: Always
+          ports:
+            - {name: http, containerPort: 8000}
+          env:
+            - {name: SERVICE_NAME, value: user-service}
+            - {name: LOG_LEVEL, value: INFO}
+          envFrom:
+            - configMapRef: {name: s24-config}
+            - secretRef: {name: s24-db}
+          resources:
+            requests: {cpu: 100m, memory: 128Mi}
+            limits: {cpu: "1", memory: 512Mi}
+          readinessProbe:
+            httpGet: {path: /readyz, port: http}
+            initialDelaySeconds: 5
+            periodSeconds: 5
+            failureThreshold: 3
+          livenessProbe:
+            httpGet: {path: /healthz, port: http}
+            initialDelaySeconds: 20
+            periodSeconds: 10
+            failureThreshold: 6
+          securityContext:
+            runAsNonRoot: true
+            runAsUser: 10001
+            allowPrivilegeEscalation: false
+            capabilities: {drop: [ALL]}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: user-service
+  labels: {app: user-service, app.kubernetes.io/part-of: s24-video-learning, s24/metrics: "true"}
+spec:
+  type: ClusterIP
+  selector: {app: user-service}
+  ports:
+    - {name: http, port: 80, targetPort: http}
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: catalog-service
+  labels: {app: catalog-service, app.kubernetes.io/part-of: s24-video-learning}
+spec:
+  replicas: 2
+  revisionHistoryLimit: 5
+  selector:
+    matchLabels: {app: catalog-service}
+  strategy:
+    type: RollingUpdate
+    rollingUpdate: {maxSurge: 1, maxUnavailable: 0}
+  template:
+    metadata:
+      labels: {app: catalog-service, app.kubernetes.io/part-of: s24-video-learning}
+    spec:
+      serviceAccountName: s24-app
+      terminationGracePeriodSeconds: 30
+      topologySpreadConstraints:
+        - maxSkew: 1
+          topologyKey: kubernetes.io/hostname
+          whenUnsatisfiable: ScheduleAnyway
+          labelSelector:
+            matchLabels: {app: catalog-service}
+      containers:
+        - name: catalog-service
+          image: s24/catalog-service
+          imagePullPolicy: Always
+          ports:
+            - {name: http, containerPort: 8000}
+          env:
+            - {name: SERVICE_NAME, value: catalog-service}
+            - {name: LOG_LEVEL, value: INFO}
+          envFrom:
+            - configMapRef: {name: s24-config}
+            - secretRef: {name: s24-db}
+          resources:
+            requests: {cpu: 100m, memory: 128Mi}
+            limits: {cpu: "1", memory: 512Mi}
+          readinessProbe:
+            httpGet: {path: /readyz, port: http}
+            initialDelaySeconds: 5
+            periodSeconds: 5
+            failureThreshold: 3
+          livenessProbe:
+            httpGet: {path: /healthz, port: http}
+            initialDelaySeconds: 20
+            periodSeconds: 10
+            failureThreshold: 6
+          securityContext:
+            runAsNonRoot: true
+            runAsUser: 10001
+            allowPrivilegeEscalation: false
+            capabilities: {drop: [ALL]}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: catalog-service
+  labels: {app: catalog-service, app.kubernetes.io/part-of: s24-video-learning, s24/metrics: "true"}
+spec:
+  type: ClusterIP
+  selector: {app: catalog-service}
+  ports:
+    - {name: http, port: 80, targetPort: http}
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: metadata-service
+  labels: {app: metadata-service, app.kubernetes.io/part-of: s24-video-learning}
+spec:
+  replicas: 2
+  revisionHistoryLimit: 5
+  selector:
+    matchLabels: {app: metadata-service}
+  strategy:
+    type: RollingUpdate
+    rollingUpdate: {maxSurge: 1, maxUnavailable: 0}
+  template:
+    metadata:
+      labels: {app: metadata-service, app.kubernetes.io/part-of: s24-video-learning}
+    spec:
+      serviceAccountName: s24-app
+      terminationGracePeriodSeconds: 30
+      topologySpreadConstraints:
+        - maxSkew: 1
+          topologyKey: kubernetes.io/hostname
+          whenUnsatisfiable: ScheduleAnyway
+          labelSelector:
+            matchLabels: {app: metadata-service}
+      containers:
+        - name: metadata-service
+          image: s24/metadata-service
+          imagePullPolicy: Always
+          ports:
+            - {name: http, containerPort: 8000}
+          env:
+            - {name: SERVICE_NAME, value: metadata-service}
+            - {name: LOG_LEVEL, value: INFO}
+          envFrom:
+            - configMapRef: {name: s24-config}
+            - secretRef: {name: s24-db}
+          resources:
+            requests: {cpu: 100m, memory: 192Mi}
+            limits: {cpu: "1", memory: 512Mi}
+          readinessProbe:
+            httpGet: {path: /readyz, port: http}
+            initialDelaySeconds: 5
+            periodSeconds: 5
+            failureThreshold: 3
+          livenessProbe:
+            httpGet: {path: /healthz, port: http}
+            initialDelaySeconds: 20
+            periodSeconds: 10
+            failureThreshold: 6
+          securityContext:
+            runAsNonRoot: true
+            runAsUser: 10001
+            allowPrivilegeEscalation: false
+            capabilities: {drop: [ALL]}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: metadata-service
+  labels: {app: metadata-service, app.kubernetes.io/part-of: s24-video-learning, s24/metrics: "true"}
+spec:
+  type: ClusterIP
+  selector: {app: metadata-service}
+  ports:
+    - {name: http, port: 80, targetPort: http}
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: content-delivery-api
+  labels: {app: content-delivery-api, app.kubernetes.io/part-of: s24-video-learning}
+spec:
+  revisionHistoryLimit: 5
+  selector:
+    matchLabels: {app: content-delivery-api}
+  strategy:
+    type: RollingUpdate
+    rollingUpdate: {maxSurge: 1, maxUnavailable: 0}
+  template:
+    metadata:
+      labels: {app: content-delivery-api, app.kubernetes.io/part-of: s24-video-learning}
+    spec:
+      serviceAccountName: s24-app
+      terminationGracePeriodSeconds: 30
+      topologySpreadConstraints:
+        - maxSkew: 1
+          topologyKey: kubernetes.io/hostname
+          whenUnsatisfiable: ScheduleAnyway
+          labelSelector:
+            matchLabels: {app: content-delivery-api}
+      containers:
+        - name: content-delivery-api
+          image: s24/content-delivery-api
+          imagePullPolicy: Always
+          ports:
+            - {name: http, containerPort: 8000}
+          env:
+            - {name: SERVICE_NAME, value: content-delivery-api}
+            - {name: LOG_LEVEL, value: INFO}
+            - {name: STALE_PROBE_RATE, value: "0.1"}
+          envFrom:
+            - configMapRef: {name: s24-config}
+          resources:
+            requests: {cpu: 100m, memory: 192Mi}
+            limits: {cpu: "1", memory: 512Mi}
+          readinessProbe:
+            httpGet: {path: /readyz, port: http}
+            initialDelaySeconds: 5
+            periodSeconds: 5
+            failureThreshold: 3
+          livenessProbe:
+            httpGet: {path: /healthz, port: http}
+            initialDelaySeconds: 20
+            periodSeconds: 10
+            failureThreshold: 6
+          securityContext:
+            runAsNonRoot: true
+            runAsUser: 10001
+            allowPrivilegeEscalation: false
+            capabilities: {drop: [ALL]}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: content-delivery-api
+  labels: {app: content-delivery-api, app.kubernetes.io/part-of: s24-video-learning, s24/metrics: "true"}
+spec:
+  type: ClusterIP
+  selector: {app: content-delivery-api}
+  ports:
+    - {name: http, port: 80, targetPort: http}
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: progress-tracker
+  labels: {app: progress-tracker, app.kubernetes.io/part-of: s24-video-learning}
+spec:
+  revisionHistoryLimit: 5
+  selector:
+    matchLabels: {app: progress-tracker}
+  strategy:
+    type: RollingUpdate
+    rollingUpdate: {maxSurge: 1, maxUnavailable: 0}
+  template:
+    metadata:
+      labels: {app: progress-tracker, app.kubernetes.io/part-of: s24-video-learning}
+    spec:
+      serviceAccountName: s24-app
+      terminationGracePeriodSeconds: 30
+      topologySpreadConstraints:
+        - maxSkew: 1
+          topologyKey: kubernetes.io/hostname
+          whenUnsatisfiable: ScheduleAnyway
+          labelSelector:
+            matchLabels: {app: progress-tracker}
+      containers:
+        - name: progress-tracker
+          image: s24/progress-tracker
+          imagePullPolicy: Always
+          ports:
+            - {name: http, containerPort: 8000}
+          env:
+            - {name: SERVICE_NAME, value: progress-tracker}
+            - {name: LOG_LEVEL, value: INFO}
+            - {name: COMPLETION_THRESHOLD_PERCENT, value: "90"}
+          envFrom:
+            - configMapRef: {name: s24-config}
+          resources:
+            requests: {cpu: 100m, memory: 160Mi}
+            limits: {cpu: "1", memory: 512Mi}
+          readinessProbe:
+            httpGet: {path: /readyz, port: http}
+            initialDelaySeconds: 5
+            periodSeconds: 5
+            failureThreshold: 3
+          livenessProbe:
+            httpGet: {path: /healthz, port: http}
+            initialDelaySeconds: 20
+            periodSeconds: 10
+            failureThreshold: 6
+          securityContext:
+            runAsNonRoot: true
+            runAsUser: 10001
+            allowPrivilegeEscalation: false
+            capabilities: {drop: [ALL]}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: progress-tracker
+  labels: {app: progress-tracker, app.kubernetes.io/part-of: s24-video-learning, s24/metrics: "true"}
+spec:
+  type: ClusterIP
+  selector: {app: progress-tracker}
+  ports:
+    - {name: http, port: 80, targetPort: http}
+---
+# Service 5 – Cache Manager. A StatefulSet gives every replica a stable identity
+# (cache-manager-0..2) that is used as its physical node name on the consistent-hash ring.
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: cache-manager
+  labels: {app: cache-manager, app.kubernetes.io/part-of: s24-video-learning}
+spec:
+  serviceName: cache-manager-headless
+  replicas: 3
+  podManagementPolicy: Parallel
+  selector:
+    matchLabels: {app: cache-manager}
+  template:
+    metadata:
+      labels: {app: cache-manager, app.kubernetes.io/part-of: s24-video-learning}
+    spec:
+      serviceAccountName: s24-app
+      terminationGracePeriodSeconds: 20
+      affinity:
+        podAntiAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+            - weight: 100
+              podAffinityTerm:
+                topologyKey: kubernetes.io/hostname
+                labelSelector:
+                  matchLabels: {app: cache-manager}
+      containers:
+        - name: cache-manager
+          image: s24/cache-manager
+          imagePullPolicy: Always
+          ports:
+            - {name: http, containerPort: 8000}
+            - {name: grpc, containerPort: 50051}
+          env:
+            - {name: SERVICE_NAME, value: cache-manager}
+            - name: POD_NAME
+              valueFrom: {fieldRef: {fieldPath: metadata.name}}
+            - name: POD_NAMESPACE
+              valueFrom: {fieldRef: {fieldPath: metadata.namespace}}
+            - {name: STATEFULSET_NAME, value: cache-manager}
+            - {name: HEADLESS_SERVICE, value: cache-manager-headless}
+            - {name: CACHE_REPLICAS, value: "3"}
+            - {name: VIRTUAL_NODES, value: "160"}
+            - {name: DEFAULT_TTL_SECONDS, value: "300"}
+            - {name: MAX_TTL_SECONDS, value: "3600"}
+            - {name: MAX_ENTRIES, value: "50000"}
+            - {name: TOMBSTONE_MS, value: "10000"}
+            - {name: SWEEP_INTERVAL_SECONDS, value: "15"}
+            - {name: GRPC_PORT, value: "50051"}
+          envFrom:
+            - configMapRef: {name: s24-config}
+          resources:
+            requests: {cpu: 100m, memory: 192Mi}
+            limits: {cpu: "1", memory: 512Mi}
+          readinessProbe:
+            httpGet: {path: /readyz, port: http}
+            initialDelaySeconds: 5
+            periodSeconds: 5
+          livenessProbe:
+            httpGet: {path: /healthz, port: http}
+            initialDelaySeconds: 20
+            periodSeconds: 10
+          securityContext:
+            runAsNonRoot: true
+            runAsUser: 10001
+            allowPrivilegeEscalation: false
+            capabilities: {drop: [ALL]}
+---
+# Headless service: stable per-pod DNS (cache-manager-N.cache-manager-headless.s24.svc...)
+# used for ring membership, peer forwarding and client-side round-robin gRPC.
+apiVersion: v1
+kind: Service
+metadata:
+  name: cache-manager-headless
+  labels: {app: cache-manager, app.kubernetes.io/part-of: s24-video-learning}
+spec:
+  clusterIP: None
+  publishNotReadyAddresses: true
+  selector: {app: cache-manager}
+  ports:
+    - {name: grpc, port: 50051, targetPort: grpc}
+    - {name: http, port: 8000, targetPort: http}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: cache-manager
+  labels: {app: cache-manager, app.kubernetes.io/part-of: s24-video-learning, s24/metrics: "true"}
+spec:
+  type: ClusterIP
+  selector: {app: cache-manager}
+  ports:
+    - {name: http, port: 80, targetPort: http}
+    - {name: grpc, port: 50051, targetPort: grpc}

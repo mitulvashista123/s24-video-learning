@@ -1,0 +1,22 @@
+# Terraform
+terraform/.terraform/
+terraform/.build/
+terraform/*.tfstate
+terraform/*.tfstate.*
+terraform/*.tfvars
+terraform/.terraform.lock.hcl
+# Python
+__pycache__/
+*.pyc
+.venv/
+# generated gRPC stubs
+cache_pb2*.py
+# Local secrets
+.env
+.env.*
+*.pem
+*.key
+.aws/
+# Terraform crash logs and saved plans
+terraform/crash.log
+terraform/*.tfplan

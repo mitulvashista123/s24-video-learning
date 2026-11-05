@@ -1,0 +1,8 @@
+# These run on Linux (EMR nodes, containers). A CRLF checkout on Windows would break them.
+* text=auto
+*.sh text eol=lf
+*.py text eol=lf
+*.tf text eol=lf
+*.yaml text eol=lf
+*.proto text eol=lf
+Dockerfile text eol=lf

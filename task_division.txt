@@ -1,0 +1,66 @@
+CS/SS G527 Cloud Computing – Assignment  |  Scenario S24: Online Video Learning
+Domain concept: Data partitioning using consistent hashing
+Cloud provider: AWS (ap-south-1)
+=====================================================================================
+
+Each member owns 2 requirements (a–h) and 2 microservices, demonstrates them and
+answers questions on them. Fill in ID numbers and names before submission.
+
+-------------------------------------------------------------------------------------
+MEMBER 1
+  ID No : ____________________        Name : ____________________
+  Requirements:
+    (a) Infrastructure as Code – terraform/main.tf, variables.tf, outputs.tf
+        (VPC, subnets, IGW, endpoints, EKS + node group + add-ons, IRSA, ECR, MSK, EMR, Lambda)
+    (g) Three cloud storage products – RDS PostgreSQL, DynamoDB (4 tables), S3 (assets + artifacts)
+  Microservices:
+    1. user-service        (REST, RDS PostgreSQL – learners & access roles)
+    2. catalog-service     (REST, RDS PostgreSQL – courses & lessons, Kafka invalidation producer)
+  Demo: terraform plan/apply output, AWS console tour of RDS/DynamoDB/S3, user & course CRUD.
+
+-------------------------------------------------------------------------------------
+MEMBER 2
+  ID No : ____________________        Name : ____________________
+  Requirements:
+    (b) Serverless function + communication mechanisms (REST, gRPC, Kafka/MSK, SQS DLQ)
+    (e) Real-time stream processing – PyFlink job on Amazon EMR, 1-minute tumbling event-time
+        window, COUNT(DISTINCT user) per lesson, results to Kafka `usage-analytics-results`
+  Microservices:
+    7. recommendation-fn       (AWS Lambda – S3 upload trigger + MSK trigger, writes DynamoDB)
+    8. usage-analytics-flink   (Apache Flink on EMR – Kafka in, stateful window, Kafka out)
+  Demo: upload a video -> Lambda log + LessonPopularity row; Flink job in YARN/Flink UI;
+        kafka-console-consumer on usage-analytics-results; UsageAnalytics rows via the API.
+
+-------------------------------------------------------------------------------------
+MEMBER 3
+  ID No : ____________________        Name : ____________________
+  Requirements:
+    (c) Managed Kubernetes (EKS) + HPAs on content-delivery-api and progress-tracker (CPU 50%)
+        + k6 load test proving scale-out / scale-in
+    (d) GitOps – ArgoCD Application tracking k8s-apps/overlays/aws; image updates only via
+        scripts/build-and-push.sh (git commit) – no kubectl apply for services
+  Microservices:
+    4. content-delivery-api  (public REST gateway behind ingress-nginx NLB, cache-aside, gRPC client)
+    6. progress-tracker      (REST, DynamoDB LearnerProgress, Kafka producer)
+  Demo: `kubectl get hpa -w` during k6 run; ArgoCD UI sync after a git push; public URL.
+
+-------------------------------------------------------------------------------------
+MEMBER 4
+  ID No : ____________________        Name : ____________________
+  Requirements:
+    (f) Domain concept – data partitioning with consistent hashing (MD5 ring, 160 virtual
+        nodes per replica, peer forwarding, cache-aside, TTL expiry, Kafka invalidation,
+        tombstones against stale sets, stale-read probing, rebalance simulation)
+    (h) Observability – Prometheus + Grafana dashboard (RPS, error rate, latency, HPA, node
+        health, cache ratios) and Loki + Grafana Alloy logging (pods and Flink on EMR)
+  Microservices:
+    5. cache-manager      (StatefulSet, gRPC + REST, consistent-hash partitioned cache)
+    3. metadata-service   (REST, RDS PostgreSQL + S3 video/subtitle uploads, presigned URLs)
+  Demo: /api/cache/ring, /api/cache/lookup?key=..., /api/cache/simulate?add=cache-manager-3
+        (consistent ≈25% vs modulo ≈75% keys moved); Grafana dashboard; Loki log search.
+
+-------------------------------------------------------------------------------------
+SHARED
+  Design document: each member writes the sections for the requirements/services they own;
+  Member 1 assembles the system overview and deployment architecture diagram.
+  Repository: microservices code, Terraform, Kubernetes manifests, GitOps config (this repo).
