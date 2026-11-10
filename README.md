@@ -4,7 +4,7 @@ CS/SS G527 Cloud Computing assignment · AWS · domain concept **data partitioni
 
 ```
                          Internet
-                            │  (AWS NLB → ingress-nginx)
+                            │  (AWS ELB → ingress-nginx)
                     ┌───────▼────────┐  gRPC (round-robin, headless svc)   ┌──────────────────────┐
                     │ 4 content-     │────────────────────────────────────►│ 5 cache-manager x3   │
                     │ delivery-api   │                                      │ StatefulSet, MD5 ring│

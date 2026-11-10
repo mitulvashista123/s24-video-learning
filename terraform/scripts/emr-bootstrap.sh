@@ -10,10 +10,15 @@ KAFKA_CONNECTOR_VERSION="${2:-3.2.0-1.18}"
 LOKI_URL="${3:-none}"
 
 # ---------------------------------------------------------------- PyFlink runtime
+# Installed into its own virtualenv: AL2023 ships pip, requests, etc. as RPMs that pip
+# cannot uninstall, so installing PyFlink into the system Python fails.
+# The Flink job runs with -pyexec/-pyclientexec /opt/s24/pyflink/bin/python (terraform/main.tf).
 sudo dnf install -y python3-pip python3-devel gcc
-# AL2023 ships pip as an RPM, which pip cannot uninstall, so install alongside it.
-sudo python3 -m pip install --upgrade --ignore-installed "pip<25"
-sudo python3 -m pip install "apache-flink==${PYFLINK_VERSION}"
+sudo mkdir -p /opt/s24
+sudo python3 -m venv /opt/s24/pyflink
+sudo /opt/s24/pyflink/bin/python -m pip install --upgrade "pip<25"
+sudo /opt/s24/pyflink/bin/python -m pip install "apache-flink==${PYFLINK_VERSION}"
+sudo chmod -R a+rX /opt/s24/pyflink
 
 # ---------------------------------------------------------------- Kafka SQL connector
 # Downloaded to a fixed path; flink_job.py registers it through `pipeline.jars`,

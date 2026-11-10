@@ -993,7 +993,7 @@ locals {
     "-Djobmanager.memory.process.size=1600m",
     "-Dtaskmanager.memory.process.size=2560m",
     "-Dtaskmanager.numberOfTaskSlots=2",
-    "-pyclientexec python3 -pyexec python3",
+    "-pyclientexec /opt/s24/pyflink/bin/python -pyexec /opt/s24/pyflink/bin/python",
     "-py /home/hadoop/flink_job.py",
     "--bootstrap-servers ${aws_msk_cluster.main.bootstrap_brokers}",
     "--source-topics ${local.kafka_topics.progress},${local.kafka_topics.access}",
@@ -1197,8 +1197,9 @@ resource "helm_release" "ingress_nginx" {
       replicaCount = 2
       service = {
         type = "LoadBalancer"
+        # Classic ELB: this account is not yet allowed to create NLB/ALB
+        # ("This AWS account currently does not support creating load balancers").
         annotations = {
-          "service.beta.kubernetes.io/aws-load-balancer-type"                              = "nlb"
           "service.beta.kubernetes.io/aws-load-balancer-cross-zone-load-balancing-enabled" = "true"
         }
       }

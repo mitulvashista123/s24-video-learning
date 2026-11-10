@@ -1,4 +1,4 @@
-# Public entry point: ingress-nginx (installed by Terraform behind an AWS NLB)
+# Public entry point: ingress-nginx (installed by Terraform behind an AWS Classic ELB)
 # routes every Internet request to the Content Delivery API only.
 apiVersion: networking.k8s.io/v1
 kind: Ingress
