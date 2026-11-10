@@ -37,7 +37,7 @@ variable "az_count" {
 variable "eks_version" {
   description = "Kubernetes version of the EKS control plane."
   type        = string
-  default     = "1.31"
+  default     = "1.35"
 }
 
 variable "node_instance_types" {
@@ -46,9 +46,11 @@ variable "node_instance_types" {
   default     = ["t3.large"]
 }
 
+# 2 x t3.large = 4 vCPU; with the single m5.xlarge EMR node this fills the 8-vCPU on-demand quota.
+# Raise all three (and emr_core_instance_count) once a larger quota is granted.
 variable "node_desired_size" {
   type    = number
-  default = 3
+  default = 2
 }
 
 variable "node_min_size" {
@@ -58,7 +60,7 @@ variable "node_min_size" {
 
 variable "node_max_size" {
   type    = number
-  default = 5
+  default = 2
 }
 
 # ----------------------------------------------------------------------------- RDS
@@ -86,7 +88,7 @@ variable "db_username" {
 # ----------------------------------------------------------------------------- MSK
 variable "kafka_version" {
   type    = string
-  default = "3.6.0"
+  default = "3.9.x"
 }
 
 variable "msk_broker_instance_type" {
@@ -112,8 +114,9 @@ variable "emr_core_instance_type" {
 }
 
 variable "emr_core_instance_count" {
-  type    = number
-  default = 1
+  description = "EMR core nodes. 0 = single-node cluster (the master also runs YARN), sized for the 8-vCPU EC2 quota."
+  type        = number
+  default     = 0
 }
 
 variable "emr_key_name" {
@@ -178,17 +181,17 @@ variable "gitops_repo_token" {
 # ----------------------------------------------------------------------------- Helm chart versions
 variable "argocd_chart_version" {
   type    = string
-  default = "7.6.12"
+  default = "10.17.1"
 }
 
 variable "argocd_apps_chart_version" {
   type    = string
-  default = "2.0.2"
+  default = "2.0.8"
 }
 
 variable "ingress_nginx_chart_version" {
   type    = string
-  default = "4.11.3"
+  default = "4.15.1"
 }
 
 # ----------------------------------------------------------------------------- application

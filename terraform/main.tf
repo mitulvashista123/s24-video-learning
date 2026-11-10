@@ -76,9 +76,9 @@ locals {
   app_service_account = "s24-app"
 
   kafka_topics = {
-    progress  = "learner-progress-events"
-    access    = "content-access-events"
-    results   = "usage-analytics-results"
+    progress   = "learner-progress-events"
+    access     = "content-access-events"
+    results    = "usage-analytics-results"
     invalidate = "cache-invalidation"
   }
 
@@ -1013,14 +1013,18 @@ resource "aws_emr_cluster" "flink" {
     instance_type = var.emr_master_instance_type
   }
 
-  core_instance_group {
-    instance_type  = var.emr_core_instance_type
-    instance_count = var.emr_core_instance_count
+  # Omitted when emr_core_instance_count = 0: a single-node cluster runs YARN on the master.
+  dynamic "core_instance_group" {
+    for_each = var.emr_core_instance_count > 0 ? [1] : []
+    content {
+      instance_type  = var.emr_core_instance_type
+      instance_count = var.emr_core_instance_count
 
-    ebs_config {
-      size                 = 32
-      type                 = "gp3"
-      volumes_per_instance = 1
+      ebs_config {
+        size                 = 32
+        type                 = "gp3"
+        volumes_per_instance = 1
+      }
     }
   }
 
@@ -1188,7 +1192,7 @@ resource "helm_release" "ingress_nginx" {
         }
       }
       config = {
-        "proxy-body-size"   = "512m"
+        "proxy-body-size"       = "512m"
         "use-forwarded-headers" = "true"
       }
       metrics = {

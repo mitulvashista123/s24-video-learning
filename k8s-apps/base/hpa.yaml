@@ -13,7 +13,7 @@ spec:
     kind: Deployment
     name: content-delivery-api
   minReplicas: 2
-  maxReplicas: 10
+  maxReplicas: 6
   metrics:
     - type: Resource
       resource:
@@ -45,7 +45,7 @@ spec:
     kind: Deployment
     name: progress-tracker
   minReplicas: 2
-  maxReplicas: 10
+  maxReplicas: 6
   metrics:
     - type: Resource
       resource:

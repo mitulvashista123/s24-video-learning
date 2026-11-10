@@ -55,7 +55,9 @@ task_division.txt          member / requirement / service split
 AWS account + `aws` CLI (credentials for an admin-ish IAM user), Terraform ≥ 1.6, Docker, kubectl, Helm 3, k6, git, Python 3.
 The repository must be on GitHub (public is simplest; for private set `gitops_repo_username/token`).
 
-> Cost note: EKS (3 × t3.large), MSK (2 brokers), EMR (2 × m5.xlarge) and RDS run ~USD 1–1.5/hour in ap-south-1. Run `terraform destroy` after the demo.
+> Sizing: defaults fit an 8-vCPU EC2 on-demand quota – EKS 2 × t3.large plus a single-node EMR (1 × m5.xlarge), HPAs capped at 6.
+> With a larger quota raise `node_*_size` and `emr_core_instance_count` in terraform.tfvars.
+> Cost note: EKS, MSK (2 brokers), EMR and RDS run roughly USD 1/hour in ap-south-1. Run `terraform destroy` after the demo.
 
 ## Deploy, step by step
 
