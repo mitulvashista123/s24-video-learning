@@ -276,6 +276,16 @@ resource "aws_security_group" "emr_core" {
   }
 }
 
+# EMR adds the ingress rules itself but refuses to launch into a managed SG without
+# an egress rule (Terraform strips AWS's default allow-all egress from new groups).
+resource "aws_vpc_security_group_egress_rule" "emr_all" {
+  for_each          = { master = aws_security_group.emr_master.id, core = aws_security_group.emr_core.id }
+  security_group_id = each.value
+  description       = "All outbound (S3, MSK, package repos)"
+  ip_protocol       = "-1"
+  cidr_ipv4         = "0.0.0.0/0"
+}
+
 ###############################################################################
 # 3. EKS
 ###############################################################################
@@ -1068,6 +1078,7 @@ resource "aws_emr_cluster" "flink" {
     aws_iam_role_policy_attachment.emr_service,
     aws_iam_role_policy_attachment.emr_ec2,
     aws_route_table_association.public,
+    aws_vpc_security_group_egress_rule.emr_all,
   ]
 
   lifecycle {
