@@ -19,7 +19,8 @@ GRAFANA_ADMIN_PASSWORD="${GRAFANA_ADMIN_PASSWORD:-s24-grafana-admin}"
 
 helm repo add prometheus-community https://prometheus-community.github.io/helm-charts
 helm repo add grafana https://grafana.github.io/helm-charts
-helm repo update
+# a flaky network must not abort the install: a previously cached index still works
+helm repo update || echo "WARN: helm repo update failed, using cached chart indexes"
 
 kubectl create namespace "$NAMESPACE" --dry-run=client -o yaml | kubectl apply -f -
 
