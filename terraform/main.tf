@@ -993,6 +993,10 @@ locals {
     "-Djobmanager.memory.process.size=1600m",
     "-Dtaskmanager.memory.process.size=2560m",
     "-Dtaskmanager.numberOfTaskSlots=2",
+    # The job usually starts before the services have created its Kafka topics; keep
+    # retrying (backoff capped at 1 min) instead of giving up after 10 fixed restarts.
+    "-Drestart-strategy.type=exponential-delay",
+    "-Drestart-strategy.exponential-delay.max-backoff=1min",
     "-pyclientexec /opt/s24/pyflink/bin/python -pyexec /opt/s24/pyflink/bin/python",
     "-py /home/hadoop/flink_job.py",
     "--bootstrap-servers ${aws_msk_cluster.main.bootstrap_brokers}",
