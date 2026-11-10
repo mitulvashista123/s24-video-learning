@@ -144,6 +144,11 @@ services log that Kafka is disabled and keep working. Cache replicas can run on 
 
 ## Teardown
 
+The observability stack is installed with Helm outside Terraform; its load balancers would block
+deleting the VPC, so remove it first.
+
 ```bash
+helm uninstall alloy loki kube-prometheus-stack -n monitoring --wait
+kubectl delete namespace monitoring
 terraform -chdir=terraform destroy
 ```
