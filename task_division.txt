@@ -1,14 +1,15 @@
 CS/SS G527 Cloud Computing – Assignment  |  Scenario S24: Online Video Learning
 Domain concept: Data partitioning using consistent hashing
 Cloud provider: AWS (ap-south-1)
+Repository    : https://github.com/mitulvashista123/s24-video-learning
 =====================================================================================
 
 Each member owns 2 requirements (a–h) and 2 microservices, demonstrates them and
-answers questions on them. Fill in ID numbers and names before submission.
+answers questions on them.
 
 -------------------------------------------------------------------------------------
 MEMBER 1
-  ID No : ____________________        Name : ____________________
+  ID No : 2026H1030076P               Name : RATHUL KRISHNAN R
   Requirements:
     (a) Infrastructure as Code – terraform/main.tf, variables.tf, outputs.tf
         (VPC, subnets, IGW, endpoints, EKS + node group + add-ons, IRSA, ECR, MSK, EMR, Lambda)
@@ -20,7 +21,7 @@ MEMBER 1
 
 -------------------------------------------------------------------------------------
 MEMBER 2
-  ID No : ____________________        Name : ____________________
+  ID No : 2026H1030071P               Name : MITUL VASHISTA
   Requirements:
     (b) Serverless function + communication mechanisms (REST, gRPC, Kafka/MSK, SQS DLQ)
     (e) Real-time stream processing – PyFlink job on Amazon EMR, 1-minute tumbling event-time
@@ -33,7 +34,7 @@ MEMBER 2
 
 -------------------------------------------------------------------------------------
 MEMBER 3
-  ID No : ____________________        Name : ____________________
+  ID No : 2025PHXP0408P               Name : SUBHAJIT ROY
   Requirements:
     (c) Managed Kubernetes (EKS) + HPAs on content-delivery-api and progress-tracker (CPU 50%)
         + k6 load test proving scale-out / scale-in
@@ -46,7 +47,7 @@ MEMBER 3
 
 -------------------------------------------------------------------------------------
 MEMBER 4
-  ID No : ____________________        Name : ____________________
+  ID No : 2026PHXP0025P               Name : MUKUL SAINI
   Requirements:
     (f) Domain concept – data partitioning with consistent hashing (MD5 ring, 160 virtual
         nodes per replica, peer forwarding, cache-aside, TTL expiry, Kafka invalidation,
