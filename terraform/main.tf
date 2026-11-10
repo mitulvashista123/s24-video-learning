@@ -1183,10 +1183,10 @@ resource "kubernetes_secret" "db" {
 }
 
 resource "helm_release" "ingress_nginx" {
-  name             = "ingress-nginx"
-  repository       = "https://kubernetes.github.io/ingress-nginx"
-  chart            = "ingress-nginx"
-  version          = var.ingress_nginx_chart_version
+  name = "ingress-nginx"
+  # Vendored: packaged from the helm-chart-<version> git tag, because GitHub release
+  # downloads (where this chart is hosted) are unreliable from some networks.
+  chart            = "${path.module}/charts/ingress-nginx-${var.ingress_nginx_chart_version}.tgz"
   namespace        = "ingress-nginx"
   create_namespace = true
   wait             = true
@@ -1217,7 +1217,7 @@ resource "helm_release" "ingress_nginx" {
 
 resource "helm_release" "argocd" {
   name             = "argocd"
-  repository       = "https://argoproj.github.io/argo-helm"
+  repository       = "oci://ghcr.io/argoproj/argo-helm" # OCI: avoids GitHub release downloads
   chart            = "argo-cd"
   version          = var.argocd_chart_version
   namespace        = "argocd"
@@ -1268,7 +1268,7 @@ resource "kubernetes_secret" "argocd_repo" {
 # Root ArgoCD Application (same spec as argocd-app.yaml in the repo root).
 resource "helm_release" "argocd_root_app" {
   name       = "s24-argocd-apps"
-  repository = "https://argoproj.github.io/argo-helm"
+  repository = "oci://ghcr.io/argoproj/argo-helm"
   chart      = "argocd-apps"
   version    = var.argocd_apps_chart_version
   namespace  = "argocd"

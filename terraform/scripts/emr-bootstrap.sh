@@ -11,7 +11,8 @@ LOKI_URL="${3:-none}"
 
 # ---------------------------------------------------------------- PyFlink runtime
 sudo dnf install -y python3-pip python3-devel gcc
-sudo python3 -m pip install --upgrade "pip<25"
+# AL2023 ships pip as an RPM, which pip cannot uninstall, so install alongside it.
+sudo python3 -m pip install --upgrade --ignore-installed "pip<25"
 sudo python3 -m pip install "apache-flink==${PYFLINK_VERSION}"
 
 # ---------------------------------------------------------------- Kafka SQL connector
