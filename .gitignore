@@ -20,3 +20,6 @@ cache_pb2*.py
 # Terraform crash logs and saved plans
 terraform/crash.log
 terraform/*.tfplan
+
+# Local credentials (Grafana admin password etc.)
+.secrets/
