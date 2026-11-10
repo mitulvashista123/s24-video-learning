@@ -5,7 +5,7 @@
 // 50 % HPA target so both Deployments scale out, then ramps down so they scale back in.
 //
 //   k6 run -e BASE_URL=http://<ingress-nlb-hostname> load-test/k6_script.js
-//   optional: -e PEAK_RPS=300 -e SUSTAIN=10m -e LEARNERS=60 -e LESSONS=12
+//   optional: -e PEAK_RPS=80 -e SUSTAIN=2m -e LEARNERS=60 -e LESSONS=12
 //
 // Watch it live:   kubectl -n s24 get hpa -w     (and the Grafana "S24 … Overview" dashboard)
 
@@ -15,8 +15,10 @@ import { Counter, Rate, Trend } from 'k6/metrics';
 import { randomIntBetween, randomItem } from 'https://jslib.k6.io/k6-utils/1.4.0/index.js';
 
 const BASE_URL = (__ENV.BASE_URL || 'http://localhost:8080').replace(/\/$/, '');
-const PEAK_RPS = parseInt(__ENV.PEAK_RPS || '250', 10);
-const SUSTAIN = __ENV.SUSTAIN || '10m';
+// 80 req/s fits the 2 x t3.large cluster: both HPAs reach 6 replicas while p95 stays < 500 ms.
+// 250 req/s saturates it (p95 ~19 s). Raise PEAK_RPS after scaling the node group up.
+const PEAK_RPS = parseInt(__ENV.PEAK_RPS || '80', 10);
+const SUSTAIN = __ENV.SUSTAIN || '2m';
 const LEARNERS = parseInt(__ENV.LEARNERS || '60', 10);
 const LESSONS = parseInt(__ENV.LESSONS || '12', 10);
 const RUN_ID = `${Date.now()}`;
@@ -66,7 +68,7 @@ export const options = {
       exec: 'recommendationsAndRing',
       rate: 3,
       timeUnit: '1s',
-      duration: '14m',
+      duration: '8m',  // = the ramping scenarios' total with SUSTAIN=2m
       preAllocatedVUs: 10,
       maxVUs: 40,
     },
