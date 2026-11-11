@@ -29,6 +29,7 @@ import grpc
 from boto3.dynamodb.types import TypeDeserializer
 from botocore.config import Config
 from fastapi import File, Header, HTTPException, Query, UploadFile
+from fastapi.staticfiles import StaticFiles
 from prometheus_client import Counter, Histogram
 from pydantic import BaseModel, Field
 
@@ -101,6 +102,11 @@ def shutdown() -> None:
 
 
 app = create_app("S24 Content Delivery API", (startup, shutdown))
+
+# Browser UI (static/index.html, app.js, style.css) at /ui: same origin as the API, so no CORS setup.
+_STATIC_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "static")
+if os.path.isdir(_STATIC_DIR):
+    app.mount("/ui", StaticFiles(directory=_STATIC_DIR, html=True), name="ui")
 
 
 # =============================================================================
@@ -315,6 +321,7 @@ def root():
     return {
         "service": "S24 Online Video Learning – Content Delivery API",
         "docs": "/docs",
+        "ui": "/ui/",
         "endpoints": [
             "POST /api/users", "GET /api/courses", "GET /api/courses/{id}", "GET /api/lessons/{id}",
             "POST /api/progress", "GET /api/users/{id}/progress", "GET /api/users/{id}/recommendations",

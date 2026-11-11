@@ -14,6 +14,7 @@ RUN pip install --upgrade pip && pip install -r /tmp/requirements.txt
 
 COPY common/ /app/common/
 COPY content-delivery-api/app.py /app/app.py
+COPY content-delivery-api/static/ /app/static/
 RUN python -m grpc_tools.protoc -I/app/common/proto --python_out=/app --grpc_python_out=/app /app/common/proto/cache.proto
 RUN useradd --uid 10001 --create-home app && chown -R app:app /app
 USER 10001

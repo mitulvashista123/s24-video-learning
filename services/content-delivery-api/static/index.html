@@ -1,0 +1,218 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>S24 Learning Console</title>
+<link rel="stylesheet" href="style.css?v=4">
+</head>
+<body>
+<header class="topbar">
+  <div class="brand">
+    <span class="brand-mark" aria-hidden="true">S24</span>
+    <div>
+      <h1>Learning Console</h1>
+      <p class="muted small">Online Video Learning · content-delivery-api</p>
+    </div>
+  </div>
+  <div class="user-bar">
+    <label for="user-select" class="small muted">Acting as</label>
+    <select id="user-select" aria-label="Current user"></select>
+    <span id="health" class="pill" title="API health">checking…</span>
+  </div>
+</header>
+
+<nav class="tabs" role="tablist">
+  <button role="tab" class="tab active" data-tab="catalog" aria-selected="true">Courses &amp; lessons</button>
+  <button role="tab" class="tab" data-tab="learning" aria-selected="false">My learning</button>
+  <button role="tab" class="tab" data-tab="hashing" aria-selected="false">Consistent hashing</button>
+  <button role="tab" class="tab" data-tab="users" aria-selected="false">Users</button>
+</nav>
+
+<div class="layout">
+<main>
+  <!-- ============================================================ catalog -->
+  <section id="tab-catalog" class="tab-panel" role="tabpanel">
+    <div class="grid-2">
+      <div class="card">
+        <div class="card-head">
+          <h2>Courses</h2>
+          <div class="row"><span id="courses-cache"></span><button id="courses-refresh" class="btn ghost">Refresh</button></div>
+        </div>
+        <ul id="course-list" class="list"></ul>
+        <details class="sub" id="course-create-box">
+          <summary>New course <span class="muted small">(instructor)</span></summary>
+          <form id="course-form" class="form">
+            <label>Title<input name="title" required maxlength="200" placeholder="Cloud Computing"></label>
+            <label>Description<textarea name="description" rows="2" placeholder="What learners will get out of it"></textarea></label>
+            <div class="row">
+              <label>Category<input name="category" value="general"></label>
+              <label>Level<select name="level"><option>beginner</option><option>intermediate</option><option>advanced</option></select></label>
+            </div>
+            <button class="btn">Create course</button>
+          </form>
+        </details>
+      </div>
+
+      <div class="card" id="course-card">
+        <div class="card-head">
+          <h2 id="course-title">Pick a course</h2>
+          <span id="course-cache"></span>
+        </div>
+        <p id="course-desc" class="muted"></p>
+        <ul id="lesson-list" class="list"></ul>
+        <details class="sub" id="lesson-create-box" hidden>
+          <summary>New lesson <span class="muted small">(instructor)</span></summary>
+          <form id="lesson-form" class="form">
+            <label>Title<input name="title" required maxlength="200" placeholder="Consistent hashing"></label>
+            <label>Summary<textarea name="summary" rows="2"></textarea></label>
+            <label>Duration (seconds)<input name="duration_seconds" type="number" min="0" value="600"></label>
+            <button class="btn">Add lesson</button>
+          </form>
+        </details>
+      </div>
+    </div>
+
+    <div class="card" id="lesson-card" hidden>
+      <div class="card-head">
+        <div>
+          <p class="eyebrow">Lesson</p>
+          <h2 id="lesson-title"></h2>
+        </div>
+        <div class="row">
+          <button id="lesson-read" class="btn">Read again</button>
+          <button id="lesson-lookup" class="btn ghost">Where is it cached?</button>
+        </div>
+      </div>
+      <p id="lesson-summary" class="muted"></p>
+      <div id="lesson-cache" class="cache-row"></div>
+      <div id="lesson-lookup-out" class="note" hidden></div>
+
+      <div class="grid-2">
+        <div>
+          <h3>Video</h3>
+          <div id="video-box" class="video-box"></div>
+          <form id="upload-form" class="form inline">
+            <label class="file">Upload a video file<input type="file" name="file" accept="video/*" required></label>
+            <button class="btn">Upload</button>
+          </form>
+          <p id="upload-status" class="small muted"></p>
+        </div>
+        <div>
+          <h3>Watch progress</h3>
+          <div id="progress-box" class="small"></div>
+          <div class="row wrap">
+            <button class="btn ghost" data-event="play">Play</button>
+            <button class="btn ghost" data-event="heartbeat">+10 s heartbeat</button>
+            <button class="btn ghost" data-event="pause">Pause</button>
+            <button class="btn ghost" data-event="complete">Complete</button>
+            <button id="watch-2min" class="btn">Simulate 2 min of watching</button>
+          </div>
+          <p class="small muted">Events go to the progress-tracker, Kafka and the Flink 1-minute windows.</p>
+        </div>
+      </div>
+
+      <details class="sub">
+        <summary>Edit lesson <span class="muted small">(instructor · triggers cache invalidation)</span></summary>
+        <form id="lesson-edit-form" class="form">
+          <label>Title<input name="title" maxlength="200"></label>
+          <label>Summary<textarea name="summary" rows="2"></textarea></label>
+          <button class="btn">Save</button>
+        </form>
+      </details>
+      <details class="sub">
+        <summary>Video details <span class="muted small">(instructor)</span></summary>
+        <form id="video-form" class="form">
+          <label>Video title<input name="title" required maxlength="200"></label>
+          <label>Description<textarea name="description" rows="2"></textarea></label>
+          <div class="row">
+            <label>Language<input name="language" value="en"></label>
+            <label>Duration (s)<input name="duration_seconds" type="number" min="0" value="600"></label>
+            <label>Resolutions<input name="resolutions" value="480p, 720p, 1080p"></label>
+          </div>
+          <button class="btn">Save video details</button>
+        </form>
+      </details>
+      <details class="sub" id="analytics-box">
+        <summary>Usage analytics <span class="muted small">(instructor · Flink windows)</span></summary>
+        <div class="row"><button id="analytics-load" class="btn ghost">Load windows</button></div>
+        <div id="analytics-out"></div>
+      </details>
+    </div>
+  </section>
+
+  <!-- ============================================================ learning -->
+  <section id="tab-learning" class="tab-panel" role="tabpanel" hidden>
+    <div class="grid-2">
+      <div class="card">
+        <div class="card-head"><h2>My progress</h2><button id="progress-refresh" class="btn ghost">Refresh</button></div>
+        <div id="my-progress"></div>
+      </div>
+      <div class="card">
+        <div class="card-head"><h2>Recommended for me</h2><button id="recs-refresh" class="btn ghost">Refresh</button></div>
+        <p class="small muted">Scored by the recommendation Lambda from uploads and Flink window results; lessons you completed are left out.</p>
+        <ul id="recs" class="list"></ul>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============================================================ hashing -->
+  <section id="tab-hashing" class="tab-panel" role="tabpanel" hidden>
+    <div class="grid-2">
+      <div class="card">
+        <div class="card-head"><h2>Ring ownership</h2><button id="ring-refresh" class="btn ghost">Refresh</button></div>
+        <p id="ring-meta" class="small muted"></p>
+        <div id="ring-bars" class="bars"></div>
+        <form id="lookup-form" class="form inline">
+          <label>Key<input name="key" required placeholder="lesson:&lt;id&gt;"></label>
+          <button class="btn">Look up owner</button>
+        </form>
+        <div id="lookup-out" class="note" hidden></div>
+      </div>
+      <div class="card">
+        <div class="card-head"><h2>What if a node is added?</h2></div>
+        <form id="sim-form" class="form inline">
+          <label>Add node<input name="add" value="cache-manager-3"></label>
+          <label>Virtual nodes<input name="vnodes" type="number" min="1" placeholder="160 (default)"></label>
+          <button class="btn">Simulate</button>
+        </form>
+        <div id="sim-out"></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============================================================ users -->
+  <section id="tab-users" class="tab-panel" role="tabpanel" hidden>
+    <div class="grid-2">
+      <div class="card">
+        <div class="card-head"><h2>Create a user</h2></div>
+        <form id="user-form" class="form">
+          <label>Name<input name="name" required maxlength="120" placeholder="Asha"></label>
+          <label>Email<input name="email" type="email" required placeholder="asha@example.com"></label>
+          <label>Role<select name="role"><option value="learner">learner</option><option value="instructor">instructor</option></select></label>
+          <button class="btn">Create and act as this user</button>
+        </form>
+      </div>
+      <div class="card">
+        <div class="card-head"><h2>Known users</h2></div>
+        <p class="small muted">Kept in this browser only. Add an existing user by id:</p>
+        <form id="user-add-form" class="form inline">
+          <label>User id<input name="id" required placeholder="uuid"></label>
+          <button class="btn ghost">Add</button>
+        </form>
+        <ul id="user-list" class="list"></ul>
+      </div>
+    </div>
+  </section>
+</main>
+
+<aside class="log card" aria-label="API calls">
+  <div class="card-head"><h2>API calls</h2><button id="log-clear" class="btn ghost small">Clear</button></div>
+  <ol id="log" class="log-list"></ol>
+</aside>
+</div>
+
+<div id="toast" class="toast" role="status" aria-live="polite" hidden></div>
+<script src="app.js?v=3"></script>
+</body>
+</html>

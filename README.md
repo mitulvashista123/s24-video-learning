@@ -89,6 +89,10 @@ export BASE_URL=http://$(kubectl -n ingress-nginx get svc ingress-nginx-controll
 curl $BASE_URL/healthz
 ```
 
+Browser UI: open `$BASE_URL/ui/` (the Learning Console, served by the content-delivery-api) to create users,
+courses and lessons, upload videos, send progress, see cache MISS/HIT with the owning node, and explore the
+hash ring, with a log of every API call it makes. `$BASE_URL/docs` is the generated API reference.
+
 Updating a service = change code → `./scripts/build-and-push.sh <service>` → ArgoCD rolls it out.
 
 ## Demo script (maps to requirements a–h)
